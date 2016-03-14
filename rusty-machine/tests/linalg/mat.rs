@@ -291,7 +291,7 @@ fn matrix_solve() {
 fn cholesky() {
     let a = Matrix::new(3, 3, vec![25., 15., -5., 15., 18., 0., -5., 0., 11.]);
 
-    let l = a.cholesky();
+    let l = a.cholesky().unwrap();
 
     assert_eq!(*l.data(), vec![5., 0., 0., 3., 3., 0., -1., 1., 3.]);
 }
@@ -300,7 +300,7 @@ fn cholesky() {
 fn qr() {
     let a = Matrix::new(3, 3, vec![12., -51., 4., 6., 167., -68., -4., 24., -41.]);
 
-    let (q, r) = a.qr_decomp();
+    let (q, r) = a.qr_decomp().unwrap();
 
     let tol = 1e-6;
 

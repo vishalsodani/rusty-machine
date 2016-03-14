@@ -26,14 +26,17 @@ impl<T: Copy + Zero + Float> Matrix<T> {
     ///
     /// let m = Matrix::new(3,3, vec![1.0,0.5,0.5,0.5,1.0,0.5,0.5,0.5,1.0]);
     ///
-    /// let l = m.cholesky();
+    /// let l = m.cholesky().unwrap();
     /// ```
     ///
     /// # Panics
     ///
     /// - Matrix is not square.
-    /// - Matrix is not positive definite. (This should probably be a Failure not a Panic).
-    pub fn cholesky(&self) -> Matrix<T> {
+    ///
+    /// # Failures
+    ///
+    /// - Matrix is not positive definite.
+    pub fn cholesky(&self) -> Result<Matrix<T>, ()> {
         assert!(self.rows() == self.cols(), "Matrix is not square.");
 
         let mut new_data = Vec::<T>::with_capacity(self.rows() * self.cols());
@@ -57,27 +60,28 @@ impl<T: Copy + Zero + Float> Matrix<T> {
                 } else {
                     let p = (self[[i, j]] - sum) / new_data[j * self.cols + j];
 
-                    assert!(!p.is_nan(), "Matrix is not positive definite.");
+                    if p.is_nan() {
+                        return Err(());
+                    }
                     new_data.push(p);
                 }
             }
         }
-
-        Matrix {
+        Ok(Matrix {
             rows: self.rows(),
             cols: self.cols(),
             data: new_data,
-        }
+        })
     }
 
-    fn make_householder(mat: Matrix<T>) -> Matrix<T> {
+    fn make_householder(mat: Matrix<T>) -> Result<Matrix<T>, ()> {
         assert!(mat.cols() == 1usize, "Householder matrix has invalid size.");
         let size = mat.rows();
 
         let denom = mat.data()[0] + mat.data()[0].signum() * mat.norm();
 
         if denom == T::zero() {
-            panic!("Matrix can not be decomposed.");
+            return Err(());
         }
 
         let mut v = (mat / denom).into_vec();
@@ -87,24 +91,24 @@ impl<T: Copy + Zero + Float> Matrix<T> {
 
         let v_vert = Matrix::new(size, 1, v.data().clone());
         let v_hor = Matrix::new(1, size, v.into_vec());
-        Matrix::<T>::identity(size) - (v_vert * v_hor) * ((T::one() + T::one()) / v_norm_sq)
+        Ok(Matrix::<T>::identity(size) - (v_vert * v_hor) * ((T::one() + T::one()) / v_norm_sq))
     }
 
-    fn make_householder_vec(mat: Matrix<T>) -> Matrix<T> {
+    fn make_householder_vec(mat: Matrix<T>) -> Result<Matrix<T>, ()> {
         assert!(mat.cols() == 1usize, "Householder matrix has invalid size.");
         let size = mat.rows();
 
         let denom = mat.data()[0] + mat.data()[0].signum() * mat.norm();
 
         if denom == T::zero() {
-            panic!("Matrix can not be decomposed.");
+            return Err(());
         }
 
         let mut v = (mat / denom).into_vec();
         v[0] = T::one();
         let v = Matrix::new(size, 1, v);
 
-        &v / v.norm()
+        Ok(&v / v.norm())
     }
 
     /// Compute the QR decomposition of the matrix.
@@ -120,7 +124,7 @@ impl<T: Copy + Zero + Float> Matrix<T> {
     ///
     /// let l = m.qr_decomp();
     /// ```
-    pub fn qr_decomp(self) -> (Matrix<T>, Matrix<T>) {
+    pub fn qr_decomp(self) -> Result<(Matrix<T>, Matrix<T>), ()> {
         let m = self.rows();
         let n = self.cols();
 
@@ -130,7 +134,7 @@ impl<T: Copy + Zero + Float> Matrix<T> {
         for i in 0..(n - ((m == n) as usize)) {
             let lower_rows = &(i..m).collect::<Vec<usize>>()[..];
             let lower_self = r.select(lower_rows, &[i]);
-            let mut holder_data = Matrix::make_householder(lower_self).into_vec();
+            let mut holder_data = try!(Matrix::make_householder(lower_self)).into_vec();
 
             // This bit is inefficient
             // using for now as we'll swap to lapack eventually.
@@ -155,7 +159,7 @@ impl<T: Copy + Zero + Float> Matrix<T> {
             r = h * &r;
         }
 
-        (q, r)
+        Ok((q, r))
     }
 }
 
@@ -171,15 +175,15 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
     /// use rusty_machine::linalg::matrix::Matrix;
     ///
     /// let a = Matrix::new(4,4,vec![2.,0.,1.,1.,2.,0.,1.,2.,1.,2.,0.,0.,2.,0.,1.,1.]);
-    /// let h = a.upper_hessenberg();
+    /// let h = a.upper_hessenberg().unwrap();
     ///
-    /// println!("{:?}", h.data());
+    /// println!("{}", h);
     /// ```
     ///
     /// # Panics
     ///
     /// - The matrix is not square.
-    pub fn upper_hessenberg(&self) -> Matrix<T> {
+    pub fn upper_hessenberg(&self) -> Result<Matrix<T>, ()> {
         let n = self.rows;
         assert!(n == self.cols,
                 "Matrix must be square to produce upper hessenberg.");
@@ -189,7 +193,7 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
         for i in 0..n - 2 {
             let lower_rows = &(i + 1..n).collect::<Vec<usize>>()[..];
             let lower_self = dummy.select(lower_rows, &[i]);;
-            let h_holder_vec = Matrix::make_householder_vec(lower_self);
+            let h_holder_vec = try!(Matrix::make_householder_vec(lower_self));
 
             let i_plus_to_n = (i + 1..n).collect::<Vec<usize>>();
 
@@ -232,7 +236,7 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
             }
         }
 
-        dummy
+        Ok(dummy)
     }
 
     /// Returns (U,H), where H is the upper hessenberg form
@@ -248,16 +252,16 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
     /// let a = Matrix::new(3,3,vec![1.,2.,3.,4.,5.,6.,7.,8.,9.]);
     ///
     /// // u is the transform, h is the upper hessenberg form.
-    /// let (u,h) = a.upper_hess_decomp();
+    /// let (u,h) = a.upper_hess_decomp().unwrap();
     ///
-    /// println!("The hess : {:?}", h.data());
-    /// println!("Manual hess : {:?}", (u.transpose() * &a * u).data());
+    /// println!("The hess : {}", h);
+    /// println!("Manual hess : {}", (u.transpose() * &a * u));
     /// ```
     ///
     /// # Panics
     ///
     /// - The matrix is not square.
-    pub fn upper_hess_decomp(&self) -> (Matrix<T>, Matrix<T>) {
+    pub fn upper_hess_decomp(&self) -> Result<(Matrix<T>, Matrix<T>), ()> {
         let n = self.rows;
         assert!(n == self.cols,
                 "Matrix must be square to produce upper hessenberg.");
@@ -268,7 +272,7 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
         for i in (0..n - 2).rev() {
             let lower_rows = (i + 1..n).collect::<Vec<usize>>();
             let lower_self = self.select(&lower_rows, &[i]);
-            let h_holder_vec = Matrix::make_householder_vec(lower_self);
+            let h_holder_vec = try!(Matrix::make_householder_vec(lower_self));
 
             let trans_block = transform.select(&lower_rows, &lower_rows);
             let reduc_block = &trans_block -
@@ -287,7 +291,7 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
         }
 
         // Now we reduce to upper hessenberg
-        (transform, self.upper_hessenberg())
+        Ok((transform, try!(self.upper_hessenberg())))
     }
 
     fn balance_matrix(&mut self) {
@@ -361,11 +365,11 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
     /// # Panics
     ///
     /// - The matrix is not square.
-    pub fn eigenvalues(&self) -> Vec<T> {
+    pub fn eigenvalues(&self) -> Result<Vec<T>, ()> {
         let n = self.rows();
         assert!(n == self.cols(), "Matrix must be square for eigendecomp.");
 
-        let mut h = self.upper_hessenberg();
+        let mut h = try!(self.upper_hessenberg());
         h.balance_matrix();
 
         let mut p = n - 1;
@@ -384,7 +388,7 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
             for k in 0..p - 1 {
                 let r = cmp::max(1, k) - 1;
 
-                let householder = Matrix::make_householder(Matrix::new(3, 1, vec![x, y, z]));
+                let householder = try!(Matrix::make_householder(Matrix::new(3, 1, vec![x, y, z])));
 
                 // Apply householder transformation to block (on the left)
                 let h_block = h.select(&[k, k + 1, k + 2], &(r..n).collect::<Vec<usize>>());
@@ -457,7 +461,7 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
             }
         }
 
-        h.diag().into_vec()
+        Ok(h.diag().into_vec())
     }
 
     /// Eigen decomposition of a square matrix.
@@ -475,19 +479,19 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
     /// 
     /// let a = Matrix::new(3,3,vec![3.,2.,4.,2.,0.,2.,4.,2.,3.]);
     ///
-    /// let (e, m) = a.eigendecomp();
+    /// let (e, m) = a.eigendecomp().unwrap();
     /// println!("{:?}", e);
-    /// println!("{:?}", m.data());
+    /// println!("{}", m);
     /// ```
     ///
     /// # Panics
     ///
     /// - The matrix is not square.
-    pub fn eigendecomp(&self) -> (Vec<T>, Matrix<T>) {
+    pub fn eigendecomp(&self) -> Result<(Vec<T>, Matrix<T>), ()> {
         let n = self.rows();
         assert!(n == self.cols(), "Matrix must be square for eigendecomp.");
 
-        let (u, mut h) = self.upper_hess_decomp();
+        let (u, mut h) = try!(self.upper_hess_decomp());
         h.balance_matrix();
         let mut transformation = Matrix::identity(n);
 
@@ -507,7 +511,7 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
             for k in 0..p - 1 {
                 let r = cmp::max(1, k) - 1;
 
-                let householder = Matrix::make_householder(Matrix::new(3, 1, vec![x, y, z]));
+                let householder = try!(Matrix::make_householder(Matrix::new(3, 1, vec![x, y, z])));
 
                 // Apply householder transformation to block (on the left)
                 let h_block = h.select(&[k, k + 1, k + 2], &(r..n).collect::<Vec<usize>>());
@@ -605,7 +609,7 @@ impl<T: Copy + Zero + One + Float + NumCast + Signed> Matrix<T> {
             }
         }
 
-        (h.diag().into_vec(), u * transformation)
+        Ok((h.diag().into_vec(), u * transformation))
     }
 }
 

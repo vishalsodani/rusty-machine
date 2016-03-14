@@ -162,14 +162,18 @@ impl<T: Kernel, U: MeanFunc> SupModel<Matrix<f64>, Vector<f64>> for GaussianProc
 
         let ker_mat = self.ker_mat(inputs, inputs);
 
-        let train_mat = (ker_mat + noise_mat).cholesky();
+        let train_mat_res = (ker_mat + noise_mat).cholesky();
 
-        let x = solve_l_triangular(&train_mat, &(targets - self.mean.func(inputs.clone())));
-        let alpha = solve_u_triangular(&train_mat.transpose(), &x);
+        if let Ok(train_mat) = train_mat_res {
+            let x = solve_l_triangular(&train_mat, &(targets - self.mean.func(inputs.clone())));
+            let alpha = solve_u_triangular(&train_mat.transpose(), &x);
 
-        self.train_mat = Some(train_mat);
-        self.train_data = Some(inputs.clone());
-        self.alpha = Some(alpha);
+            self.train_mat = Some(train_mat);
+            self.train_data = Some(inputs.clone());
+            self.alpha = Some(alpha);
+        } else {
+            panic!("Cov matrix was not positive definite. Try adding larger noise to regularize.");
+        }
     }
 }
 
