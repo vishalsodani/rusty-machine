@@ -84,24 +84,20 @@ impl<'a, T: 'a + Copy> Iterator for ViewIter<'a, T> {
 		let raw_row_idx = self.view.window_corner[0] + self.row_pos;
 		let raw_col_idx = self.view.window_corner[1] + self.col_pos;
 
-		if self.row_pos < self.view.rows-1 {
+		// Set the position of the next element
+		if self.row_pos < self.view.rows {
+			// If end of row, set to start of next row
 			if self.col_pos == self.view.cols - 1 {
 				self.row_pos += 1usize;
 				self.col_pos = 0usize;
 			} else {
 				self.col_pos += 1usize;
 			}
-		} else if self.row_pos == self.view.rows-1 {
-			if self.col_pos == self.view.cols - 1 {
-				self.row_pos += 1usize;
-			} else {
-				self.col_pos += 1usize;
-			}
-		} else {
-			return None;
-		}
 
-		Some(self.view.mat[[raw_row_idx, raw_col_idx]])
+			Some(self.view.mat[[raw_row_idx, raw_col_idx]])
+		} else {
+			None
+		}
 	}
 }
 
