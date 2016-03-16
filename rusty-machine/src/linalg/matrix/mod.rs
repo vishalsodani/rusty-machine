@@ -12,6 +12,7 @@ use linalg::vector::Vector;
 use linalg::utils;
 
 mod decomposition;
+mod views;
 
 /// The Matrix struct.
 ///
