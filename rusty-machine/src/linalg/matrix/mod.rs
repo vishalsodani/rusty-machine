@@ -10,6 +10,7 @@ use std::cmp::{PartialEq, min};
 use linalg::Metric;
 use linalg::vector::Vector;
 use linalg::utils;
+use rayon;
 
 mod decomposition;
 
@@ -757,7 +758,7 @@ impl<T> Matrix<T> where T: Copy + One + Zero + Neg<Output=T> +
                            Sub<T, Output=T> + Div<T, Output=T> +
                            PartialOrd {
 
-    /// Solves an upper triangular linear system.
+/// Solves an upper triangular linear system.
     fn solve_u_triangular(&self, y: Vector<T>) -> Vector<T> {
         assert!(self.cols == y.size(), "Matrix and Vector dimensions do not agree.");
 
@@ -778,7 +779,7 @@ impl<T> Matrix<T> where T: Copy + One + Zero + Neg<Output=T> +
         Vector::new(x)
     }
 
-    /// Solves a lower triangular linear system.
+/// Solves a lower triangular linear system.
     fn solve_l_triangular(&self, y: Vector<T>) -> Vector<T> {
         assert!(self.cols == y.size(), "Matrix and Vector dimensions do not agree.");
 
@@ -799,7 +800,7 @@ impl<T> Matrix<T> where T: Copy + One + Zero + Neg<Output=T> +
         Vector::new(x)
     }
 
-    /// Computes the parity of a permutation matrix.
+/// Computes the parity of a permutation matrix.
     fn parity(&self) -> T {
         let mut visited = vec![false; self.rows];
         let mut sgn = T::one();
@@ -823,27 +824,27 @@ impl<T> Matrix<T> where T: Copy + One + Zero + Neg<Output=T> +
         sgn
     }
 
-    /// Solves the equation Ax = y.
-    ///
-    /// Requires a Vector y as input.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rusty_machine::linalg::matrix::Matrix;
-    /// use rusty_machine::linalg::vector::Vector;
-    ///
-    /// let a = Matrix::new(2,2, vec![2.0,3.0,1.0,2.0]);
-    /// let y = Vector::new(vec![13.0,8.0]);
-    ///
-    /// let x = a.solve(y);
-    ///
-    /// assert_eq!(*x.data(), vec![2.0, 3.0]);
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// - The matrix column count and vector size are different.
+/// Solves the equation Ax = y.
+///
+/// Requires a Vector y as input.
+///
+/// # Examples
+///
+/// ```
+/// use rusty_machine::linalg::matrix::Matrix;
+/// use rusty_machine::linalg::vector::Vector;
+///
+/// let a = Matrix::new(2,2, vec![2.0,3.0,1.0,2.0]);
+/// let y = Vector::new(vec![13.0,8.0]);
+///
+/// let x = a.solve(y);
+///
+/// assert_eq!(*x.data(), vec![2.0, 3.0]);
+/// ```
+///
+/// # Panics
+///
+/// - The matrix column count and vector size are different.
     pub fn solve(&self, y: Vector<T>) -> Vector<T> {
         let (l,u,p) = self.lup_decomp();
 
@@ -851,24 +852,24 @@ impl<T> Matrix<T> where T: Copy + One + Zero + Neg<Output=T> +
         u.solve_u_triangular(b)
     }
 
-    /// Computes the inverse of the matrix.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rusty_machine::linalg::matrix::Matrix;
-    ///
-    /// let a = Matrix::new(2,2, vec![2.,3.,1.,2.]);
-    /// let inv = a.inverse();
-    ///
-    /// let I = a * inv;
-    ///
-    /// assert_eq!(*I.data(), vec![1.0,0.0,0.0,1.0]);
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// - The matrix is not square.
+/// Computes the inverse of the matrix.
+///
+/// # Examples
+///
+/// ```
+/// use rusty_machine::linalg::matrix::Matrix;
+///
+/// let a = Matrix::new(2,2, vec![2.,3.,1.,2.]);
+/// let inv = a.inverse();
+///
+/// let I = a * inv;
+///
+/// assert_eq!(*I.data(), vec![1.0,0.0,0.0,1.0]);
+/// ```
+///
+/// # Panics
+///
+/// - The matrix is not square.
     pub fn inverse(&self) -> Matrix<T> {
         assert!(self.rows==self.cols, "Matrix is not square.");
 
@@ -900,24 +901,24 @@ impl<T> Matrix<T> where T: Copy + One + Zero + Neg<Output=T> +
         Matrix::new(self.rows, self.cols, new_t_data).transpose()
     }
 
-    /// Computes the determinant of the matrix.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rusty_machine::linalg::matrix::Matrix;
-    ///
-    /// let a = Matrix::new(3,3, vec![1.0,2.0,0.0,
-    ///                               0.0,3.0,4.0,
-    ///                               5.0, 1.0, 2.0]);
-    ///
-    /// let det = a.det();
-    ///
-    /// ```
-    ///
-    /// # Panics
-    ///
-    /// - The matrix is not square.
+/// Computes the determinant of the matrix.
+///
+/// # Examples
+///
+/// ```
+/// use rusty_machine::linalg::matrix::Matrix;
+///
+/// let a = Matrix::new(3,3, vec![1.0,2.0,0.0,
+///                               0.0,3.0,4.0,
+///                               5.0, 1.0, 2.0]);
+///
+/// let det = a.det();
+///
+/// ```
+///
+/// # Panics
+///
+/// - The matrix is not square.
     pub fn det(&self) -> T {
         assert!(self.rows==self.cols, "Matrix is not square.");
 
@@ -1057,6 +1058,79 @@ impl<'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'b
             rows: self.rows,
             cols: m.cols,
             data: new_data
+        }
+    }
+}
+
+impl<T: Copy + Sync + Send + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Matrix<T> {
+    /// Multiplies matrices using Parallel divide and conquer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rusty_machine::linalg::matrix::Matrix;
+    ///
+    /// let a = Matrix::new(3,3,vec![3.0; 9]);
+    /// let b = Matrix::new(3,3,vec![1.0; 9]);
+    ///
+    /// let c = a.paramul(&b);
+    /// assert_eq!(c.into_vec(), vec![9.0; 9]);
+    /// ```
+    pub fn paramul(&self, m: &Matrix<T>) -> Matrix<T> {
+        let n = self.rows();
+        let p = self.cols();
+        let q = m.cols();
+
+        let mut max_dim = n;
+
+        if max_dim < p {
+            max_dim = p;
+        }
+        if max_dim < q {
+            max_dim = q;
+        }
+
+        if max_dim < 128 {
+            self * m
+        } else {
+            let split_point = max_dim / 2;
+            
+            if max_dim == n {
+                let top = self.select_rows(&(0..split_point).collect::<Vec<usize>>()[..]);
+                let bottom = self.select_rows(&(split_point..n).collect::<Vec<usize>>()[..]);
+
+                let (a_1_b, a_2_b) = rayon::join(|| Matrix::paramul(&top, m),
+                                                 || Matrix::paramul(&bottom, m));
+
+                a_1_b.vcat(&a_2_b)
+            } else if max_dim == p {
+                // Split self vertically and b horizontally
+                let split_point = p / 2;
+
+                let a_left = self.select_cols(&(0..split_point).collect::<Vec<usize>>()[..]);
+                let a_right = self.select_cols(&(split_point..p).collect::<Vec<usize>>()[..]);
+
+                let b_top = m.select_rows(&(0..split_point).collect::<Vec<usize>>()[..]);
+                let b_bottom = m.select_rows(&(split_point..p).collect::<Vec<usize>>()[..]);
+
+                let (a_1_b_1, a_2_b_2) = rayon::join(|| Matrix::paramul(&a_left, &b_top),
+                                                     || Matrix::paramul(&a_right, &b_bottom));
+
+                a_1_b_1 + a_2_b_2
+            } else if max_dim == q {
+                // Split m vertically
+                let split_point = q / 2;
+
+                let left = m.select_cols(&(0..split_point).collect::<Vec<usize>>()[..]);
+                let right = m.select_cols(&(split_point..q).collect::<Vec<usize>>()[..]);
+
+                let (a_b_1, a_b_2) = rayon::join(|| Matrix::paramul(self, &left),
+                                                 || Matrix::paramul(self, &right));
+
+                a_b_1.hcat(&a_b_2)
+            } else {
+                panic!("Couldn't find the max of the matrix dimensions.");
+            }
         }
     }
 }
@@ -1396,7 +1470,7 @@ impl<T: fmt::Display> fmt::Display for Matrix<T> {
         for datum in &self.data {
             let datum_width = match f.precision() {
                 Some(places) => format!("{:.1$}", datum, places).len(),
-                None => format!("{}", datum).len()
+                None => format!("{}", datum).len(),
             };
             if datum_width > max_datum_width {
                 max_datum_width = datum_width;
@@ -1404,48 +1478,48 @@ impl<T: fmt::Display> fmt::Display for Matrix<T> {
         }
         let width = max_datum_width;
 
-        fn write_row<T: fmt::Display>(f: &mut fmt::Formatter, row: &[T],
+        fn write_row<T: fmt::Display>(f: &mut fmt::Formatter,
+                                      row: &[T],
                                       left_delimiter: &str,
                                       right_delimiter: &str,
                                       width: usize)
                                       -> Result<(), fmt::Error> {
-                try!(write!(f, "{}", left_delimiter));
-                for (index, datum) in row.iter().enumerate() {
-                    match f.precision() {
-                        Some(places) => {
-                            try!(write!(f, "{:1$.2$}", datum, width, places));
-                        },
-                        None => {
-                            try!(write!(f, "{:1$}", datum, width));
-                        }
+            try!(write!(f, "{}", left_delimiter));
+            for (index, datum) in row.iter().enumerate() {
+                match f.precision() {
+                    Some(places) => {
+                        try!(write!(f, "{:1$.2$}", datum, width, places));
                     }
-                    if index < row.len() - 1 {
-                        try!(write!(f, " "));
+                    None => {
+                        try!(write!(f, "{:1$}", datum, width));
                     }
                 }
+                if index < row.len() - 1 {
+                    try!(write!(f, " "));
+                }
+            }
             write!(f, "{}", right_delimiter)
         }
 
         match self.rows {
             1 => write_row(f, &self.data, "[", "]", width),
             _ => {
-                try!(write_row(f, &self.data[0..self.cols],
+                try!(write_row(f,
+                               &self.data[0..self.cols],
                                "⎡", // \u{23a1} LEFT SQUARE BRACKET UPPER CORNER
                                "⎤", // \u{23a4} RIGHT SQUARE BRACKET UPPER CORNER
                                width));
                 try!(f.write_str("\n"));
-                for row_index in 1..self.rows-1 {
+                for row_index in 1..self.rows - 1 {
                     try!(write_row(f,
-                                   &self.data[row_index*self.cols..
-                                              (row_index+1)*self.cols],
+                                   &self.data[row_index * self.cols..(row_index + 1) * self.cols],
                                    "⎢", // \u{23a2} LEFT SQUARE BRACKET EXTENSION
                                    "⎥", // \u{23a5} RIGHT SQUARE BRACKET EXTENSION
                                    width));
                     try!(f.write_str("\n"));
                 }
                 write_row(f,
-                          &self.data[(self.rows-1)*self.cols..
-                                     self.rows*self.cols],
+                          &self.data[(self.rows - 1) * self.cols..self.rows * self.cols],
                           "⎣", // \u{23a3} LEFT SQUARE BRACKET LOWER CORNER
                           "⎦", // \u{23a6} RIGHT SQUARE BRACKET LOWER CORNER
                           width)
@@ -1463,18 +1537,15 @@ mod tests {
     #[test]
     fn test_display_formatting() {
         let first_matrix = Matrix::new(2, 3, vec![1, 2, 3, 4, 5, 6]);
-        let first_expectation = "⎡1 2 3⎤\n\
-                                 ⎣4 5 6⎦";
+        let first_expectation = "⎡1 2 3⎤\n⎣4 5 6⎦";
         assert_eq!(first_expectation, format!("{}", first_matrix));
 
-        let second_matrix = Matrix::new(4, 3, vec![3.14, 2.718, 1.414,
-                                                   2.503, 4.669, 1.202,
-                                                   1.618, 0.5772, 1.3,
-                                                   2.68545, 1.282, 10000.]);
-        let second_expectation = "⎡   3.14   2.718   1.414⎤\n\
-                                  ⎢  2.503   4.669   1.202⎥\n\
-                                  ⎢  1.618  0.5772     1.3⎥\n\
-                                  ⎣2.68545   1.282   10000⎦";
+        let second_matrix = Matrix::new(4,
+                                        3,
+                                        vec![3.14, 2.718, 1.414, 2.503, 4.669, 1.202, 1.618,
+                                             0.5772, 1.3, 2.68545, 1.282, 10000.]);
+        let second_expectation = "⎡   3.14   2.718   1.414⎤\n⎢  2.503   4.669   1.202⎥\n⎢  1.618  \
+                                  0.5772     1.3⎥\n⎣2.68545   1.282   10000⎦";
         assert_eq!(second_expectation, format!("{}", second_matrix));
     }
 
@@ -1486,25 +1557,47 @@ mod tests {
 
     #[test]
     fn test_display_formatting_precision() {
-        let our_matrix = Matrix::new(2, 3, vec![1.2, 1.23, 1.234,
-                                                1.2345, 1.23456, 1.234567]);
-        let expectations = vec![
-            "⎡1.2 1.2 1.2⎤\n\
-             ⎣1.2 1.2 1.2⎦",
+        let our_matrix = Matrix::new(2, 3, vec![1.2, 1.23, 1.234, 1.2345, 1.23456, 1.234567]);
+        let expectations = vec!["⎡1.2 1.2 1.2⎤\n⎣1.2 1.2 1.2⎦",
 
-            "⎡1.20 1.23 1.23⎤\n\
-             ⎣1.23 1.23 1.23⎦",
+                                "⎡1.20 1.23 1.23⎤\n⎣1.23 1.23 1.23⎦",
 
-            "⎡1.200 1.230 1.234⎤\n\
-             ⎣1.234 1.235 1.235⎦",
+                                "⎡1.200 1.230 1.234⎤\n⎣1.234 1.235 1.235⎦",
 
-            "⎡1.2000 1.2300 1.2340⎤\n\
-             ⎣1.2345 1.2346 1.2346⎦"
-        ];
+                                "⎡1.2000 1.2300 1.2340⎤\n⎣1.2345 1.2346 1.2346⎦"];
 
         for (places, &expectation) in (1..5).zip(expectations.iter()) {
             assert_eq!(expectation, format!("{:.1$}", our_matrix, places));
         }
     }
 
+    #[test]
+    fn test_paramul_large_n() {
+        let a = Matrix::new(128, 10, vec![1.0; 1280]);
+        let b = Matrix::new(10, 10, vec![1.0; 100]);
+
+        let c = a.paramul(&b);
+
+        assert_eq!(c.into_vec(), vec![10.0;1280]);
+    }
+
+    #[test]
+    fn test_paramul_large_p() {
+        let a = Matrix::new(10, 128, vec![1.0; 1280]);
+        let b = Matrix::new(128, 10, vec![1.0; 1280]);
+
+        let c = a.paramul(&b);
+
+        assert_eq!(c.into_vec(), vec![128.0;100]);
+    }
+
+    #[test]
+    fn test_paramul_large_q() {
+        let a = Matrix::new(10, 10, vec![1.0; 100]);
+        let b = Matrix::new(10, 128, vec![1.0; 1280]);
+
+        let c = a.paramul(&b);
+
+        assert_eq!(c.into_vec(), vec![10.0;1280]);
+    }
 }

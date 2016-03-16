@@ -85,6 +85,7 @@
 
 extern crate num as libnum;
 extern crate rand;
+extern crate rayon;
 
 /// Module for linear algebra.
 pub mod linalg {
