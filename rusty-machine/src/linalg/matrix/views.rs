@@ -1,7 +1,7 @@
 use super::Matrix;
 
 use std::ops::{Mul, Add, Div, Sub, Index, Neg};
-use libnum::{One, Zero, Float, FromPrimitive};
+use libnum::{One, Zero};
 
 #[derive(Debug, Clone, Copy)]
 pub struct MatrixView<'a, T: 'a> {
@@ -11,7 +11,7 @@ pub struct MatrixView<'a, T: 'a> {
 	mat: &'a Matrix<T>,
 }
 
-impl<'a, T:'a> MatrixView<'a, T> {
+impl<'a, T> MatrixView<'a, T> {
 
 	pub fn rows(&self) -> usize {
 		self.rows
@@ -43,9 +43,6 @@ impl<'a, T:'a> MatrixView<'a, T> {
 			mat: mat,
 		}
 	}
-}
-
-impl<'a, T: 'a + Copy> MatrixView<'a, T> {
 
 	/// Returns an iterator over the matrix view.
 	///
@@ -58,27 +55,39 @@ impl<'a, T: 'a + Copy> MatrixView<'a, T> {
 	/// let a = Matrix::new(3,3, (0..9).collect::<Vec<usize>>());
 	/// let view = MatrixView::from_matrix(&a, [1,1], 2, 2);
 	///
-	/// let view_data = view.iter().collect::<Vec<usize>>();
+	/// let view_data = view.iter().map(|v| *v).collect::<Vec<usize>>();
 	/// assert_eq!(view_data, vec![4,5,7,8]);
 	/// ```
-	pub fn iter(&self) -> ViewIter<'a, T> {
+	pub fn iter(&'a self) -> ViewIter<'a, T> {
 		ViewIter {
-			view: *self,
+			view: self,
 			row_pos: 0,
 			col_pos: 0,
 		}
 	}
 }
 
+impl<'a, T: Copy> MatrixView<'a, T> {
+
+	pub fn into_matrix(self) -> Matrix<T> {
+		let view_data = self.iter().map(|v| *v).collect::<Vec<T>>();
+		Matrix {
+			rows: self.rows,
+			cols: self.cols,
+			data: view_data,
+		}
+	}
+}
+
 #[derive(Debug)]
 pub struct ViewIter<'a, T: 'a> {
-	view: MatrixView<'a, T>,
+	view: &'a MatrixView<'a, T>,
 	row_pos: usize,
 	col_pos: usize,
 }
 
-impl<'a, T: 'a + Copy> Iterator for ViewIter<'a, T> {
-	type Item = T;
+impl<'a, T> Iterator for ViewIter<'a, T> {
+	type Item = &'a T;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let raw_row_idx = self.view.window_corner[0] + self.row_pos;
@@ -94,11 +103,26 @@ impl<'a, T: 'a + Copy> Iterator for ViewIter<'a, T> {
 				self.col_pos += 1usize;
 			}
 
-			Some(self.view.mat[[raw_row_idx, raw_col_idx]])
+			Some(&self.view.mat[[raw_row_idx, raw_col_idx]])
 		} else {
 			None
 		}
 	}
+}
+
+/// Indexes matrix.
+///
+/// Takes row index first then column.
+impl<'a, T> Index<[usize; 2]> for MatrixView<'a, T> {
+    type Output = T;
+
+    fn index(&self, idx: [usize; 2]) -> &T {
+        assert!(idx[0] < self.rows,
+                "Row index is greater than row dimension.");
+        assert!(idx[1] < self.cols,
+                "Column index is greater than column dimension.");
+        unsafe { &self.mat.data().get_unchecked((self.window_corner[0] + idx[0]) * self.cols + self.window_corner[1] + idx[1]) }
+    }
 }
 
 /// Multiplies matrix by scalar.
@@ -133,7 +157,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'c T> for &'b M
     type Output = Matrix<T>;
 
     fn mul(self, f: &T) -> Matrix<T> {
-        let new_data: Vec<T> = self.iter().map(|v| v * (*f)).collect();
+        let new_data: Vec<T> = self.iter().map(|v| (*v) * (*f)).collect();
 
         Matrix {
             cols: self.cols,
@@ -292,7 +316,303 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c T> for &'b M
     type Output = Matrix<T>;
 
     fn add(self, f: &T) -> Matrix<T> {
-        let new_data: Vec<T> = self.iter().map(|v| v + (*f)).collect();
+        let new_data = self.iter().map(|v| (*v) + (*f)).collect();
+
+        Matrix {
+            cols: self.cols,
+            rows: self.rows,
+            data: new_data,
+        }
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn add(self, f: Matrix<T>) -> Matrix<T> {
+        (&self) + (&f)
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for &'b MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn add(self, f: Matrix<T>) -> Matrix<T> {
+        self + (&f)
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b Matrix<T>> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn add(self, f: &Matrix<T>) -> Matrix<T> {
+        (&self) + f
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c Matrix<T>> for &'b MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn add(self, m: &Matrix<T>) -> Matrix<T> {
+        assert!(self.cols == m.cols, "Column dimensions do not agree.");
+        assert!(self.rows == m.rows, "Row dimensions do not agree.");
+
+        let new_data = self.iter().zip(m.data().iter()).map(|(u, v)| *u + *v).collect();
+
+        Matrix {
+            cols: self.cols,
+            rows: self.rows,
+            data: new_data,
+        }
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixView<'b, T>> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn add(self, f: MatrixView<T>) -> Matrix<T> {
+        (&self) + (&f)
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn add(self, f: MatrixView<T>) -> Matrix<T> {
+        self + (&f)
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c MatrixView<'b, T>> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn add(self, f: &MatrixView<T>) -> Matrix<T> {
+        (&self) + f
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Add<T, Output = T>> Add<&'d MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn add(self, m: &MatrixView<T>) -> Matrix<T> {
+        assert!(self.cols == m.cols, "Column dimensions do not agree.");
+        assert!(self.rows == m.rows, "Row dimensions do not agree.");
+
+        let new_data = self.iter().zip(m.iter()).map(|(u, v)| *u + *v).collect();
+
+        Matrix {
+            cols: self.cols,
+            rows: self.rows,
+            data: new_data,
+        }
+    }
+}
+
+/// Subtracts scalar from matrix.
+impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: T) -> Matrix<T> {
+        (&self) - (&f)
+    }
+}
+
+/// Subtracts scalar from matrix.
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'a T> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: &T) -> Matrix<T> {
+        (&self) - f
+    }
+}
+
+/// Subtracts scalar from matrix.
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for &'b MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: T) -> Matrix<T> {
+        self - (&f)
+    }
+}
+
+/// Subtracts scalar from matrix.
+impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c T> for &'b MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: &T) -> Matrix<T> {
+        let new_data = self.iter().map(|v| (*v) - *f).collect();
+
+        Matrix {
+            cols: self.cols,
+            rows: self.rows,
+            data: new_data,
+        }
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: Matrix<T>) -> Matrix<T> {
+        (&self) - (&f)
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'b MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: Matrix<T>) -> Matrix<T> {
+        self - (&f)
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'b Matrix<T>> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: &Matrix<T>) -> Matrix<T> {
+        (&self) - f
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c Matrix<T>> for &'b MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, m: &Matrix<T>) -> Matrix<T> {
+        assert!(self.cols == m.cols, "Column dimensions do not agree.");
+        assert!(self.rows == m.rows, "Row dimensions do not agree.");
+
+        let new_data = self.iter().zip(m.data().iter()).map(|(u, v)| *u - *v).collect();
+
+        Matrix {
+            cols: self.cols,
+            rows: self.rows,
+            data: new_data,
+        }
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixView<'b, T>> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: MatrixView<T>) -> Matrix<T> {
+        (&self) - (&f)
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: MatrixView<T>) -> Matrix<T> {
+        self - (&f)
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c MatrixView<'b, T>> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, f: &MatrixView<T>) -> Matrix<T> {
+        (&self) - f
+    }
+}
+
+/// Adds matrix to matrix.
+impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'d MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn sub(self, m: &MatrixView<T>) -> Matrix<T> {
+        assert!(self.cols == m.cols, "Column dimensions do not agree.");
+        assert!(self.rows == m.rows, "Row dimensions do not agree.");
+
+        let new_data = self.iter().zip(m.iter()).map(|(u, v)| *u - *v).collect();
+
+        Matrix {
+            cols: self.cols,
+            rows: self.rows,
+            data: new_data,
+        }
+    }
+}
+
+/// Divides matrix by scalar.
+impl<'a, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn div(self, f: T) -> Matrix<T> {
+        (&self) / (&f)
+    }
+}
+
+/// Divides matrix by scalar.
+impl<'a,'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for &'b MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn div(self, f: T) -> Matrix<T> {
+        self / (&f)
+    }
+}
+
+/// Divides matrix by scalar.
+impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'b T> for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn div(self, f: &T) -> Matrix<T> {
+        (&self) / f
+    }
+}
+
+/// Divides matrix by scalar.
+impl<'a, 'b, 'c, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'c T> for &'b MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn div(self, f: &T) -> Matrix<T> {
+        assert!(*f != T::zero());
+
+        let new_data = self.iter().map(|v| (*v) / *f).collect();
+
+        Matrix {
+            cols: self.cols,
+            rows: self.rows,
+            data: new_data,
+        }
+    }
+}
+
+/// Gets negative of matrix.
+impl<'a, T: Neg<Output = T> + Copy> Neg for MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn neg(self) -> Matrix<T> {
+        let new_data = self.iter().map(|v| -*v).collect();
+
+        Matrix {
+            cols: self.cols,
+            rows: self.rows,
+            data: new_data,
+        }
+    }
+}
+
+/// Gets negative of matrix.
+impl<'a, 'b, T: Neg<Output = T> + Copy> Neg for &'b MatrixView<'a, T> {
+    type Output = Matrix<T>;
+
+    fn neg(self) -> Matrix<T> {
+        let new_data = self.iter().map(|v| -*v).collect();
 
         Matrix {
             cols: self.cols,
