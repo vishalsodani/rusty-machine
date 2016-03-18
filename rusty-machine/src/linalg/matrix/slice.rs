@@ -3,53 +3,53 @@ use super::Matrix;
 use std::ops::{Mul, Add, Div, Sub, Index, Neg};
 use libnum::{One, Zero};
 
-/// A MatrixView
+/// A MatrixSlice
 ///
-/// This struct provides a view into a matrix.
+/// This struct provides a slice into a matrix.
 ///
-/// The struct contains the upper left point of the view
-/// and the width and height of the view.
+/// The struct contains the upper left point of the slice
+/// and the width and height of the slice.
 #[derive(Debug, Clone, Copy)]
-pub struct MatrixView<'a, T: 'a> {
+pub struct MatrixSlice<'a, T: 'a> {
     window_corner: [usize; 2],
     rows: usize,
     cols: usize,
     mat: &'a Matrix<T>,
 }
 
-impl<'a, T> MatrixView<'a, T> {
-	/// Return the number of rows in the view.
+impl<'a, T> MatrixSlice<'a, T> {
+	/// Return the number of rows in the slice.
     pub fn rows(&self) -> usize {
         self.rows
     }
 
-    /// Return the number of columns in the view.
+    /// Return the number of columns in the slice.
     pub fn cols(&self) -> usize {
         self.cols
     }
 
-    /// Produce a matrix view from a matrix
+    /// Produce a matrix slice from a matrix
     ///
     /// # Examples
     ///
     /// ```
     /// use rusty_machine::linalg::matrix::Matrix;
-    /// use rusty_machine::linalg::matrix::views::MatrixView;
+    /// use rusty_machine::linalg::matrix::slice::MatrixSlice;
     ///
     /// let a = Matrix::new(3,3, (0..9).collect::<Vec<usize>>());
-    /// let view = MatrixView::from_matrix(&a, [1,1], 2, 2);
+    /// let slice = MatrixSlice::from_matrix(&a, [1,1], 2, 2);
     /// ```
     pub fn from_matrix(mat: &'a Matrix<T>,
                        start: [usize; 2],
                        rows: usize,
                        cols: usize)
-                       -> MatrixView<'a, T> {
+                       -> MatrixSlice<'a, T> {
         assert!(start[0] + rows <= mat.rows(),
                 "View dimensions exceed matrix dimensions.");
         assert!(start[1] + cols <= mat.cols(),
                 "View dimensions exceed matrix dimensions.");
 
-        MatrixView {
+        MatrixSlice {
             window_corner: start,
             rows: rows,
             cols: cols,
@@ -57,70 +57,70 @@ impl<'a, T> MatrixView<'a, T> {
         }
     }
 
-    /// Returns an iterator over the matrix view.
+    /// Returns an iterator over the matrix slice.
     ///
     /// # Examples
     ///
     /// ```
     /// use rusty_machine::linalg::matrix::Matrix;
-    /// use rusty_machine::linalg::matrix::views::MatrixView;
+    /// use rusty_machine::linalg::matrix::slice::MatrixSlice;
     ///
     /// let a = Matrix::new(3,3, (0..9).collect::<Vec<usize>>());
-    /// let view = MatrixView::from_matrix(&a, [1,1], 2, 2);
+    /// let slice = MatrixSlice::from_matrix(&a, [1,1], 2, 2);
     ///
-    /// let view_data = view.iter().map(|v| *v).collect::<Vec<usize>>();
-    /// assert_eq!(view_data, vec![4,5,7,8]);
+    /// let slice_data = slice.iter().map(|v| *v).collect::<Vec<usize>>();
+    /// assert_eq!(slice_data, vec![4,5,7,8]);
     /// ```
-    pub fn iter(&'a self) -> ViewIter<'a, T> {
-        ViewIter {
-            view: self,
+    pub fn iter(&'a self) -> SliceIter<'a, T> {
+        SliceIter {
+            slice: self,
             row_pos: 0,
             col_pos: 0,
         }
     }
 }
 
-impl<'a, T: Copy> MatrixView<'a, T> {
-	/// Convert the matrix view into a new Matrix.
+impl<'a, T: Copy> MatrixSlice<'a, T> {
+	/// Convert the matrix slice into a new Matrix.
     pub fn into_matrix(self) -> Matrix<T> {
-        let view_data = self.iter().map(|v| *v).collect::<Vec<T>>();
+        let slice_data = self.iter().map(|v| *v).collect::<Vec<T>>();
         Matrix {
             rows: self.rows,
             cols: self.cols,
-            data: view_data,
+            data: slice_data,
         }
     }
 }
 
-/// Iterator for the MatrixView
+/// Iterator for the MatrixSlice
 ///
-/// Iterates over the underlying view data
+/// Iterates over the underlying slice data
 /// in row-major order.
 #[derive(Debug)]
-pub struct ViewIter<'a, T: 'a> {
-    view: &'a MatrixView<'a, T>,
+pub struct SliceIter<'a, T: 'a> {
+    slice: &'a MatrixSlice<'a, T>,
     row_pos: usize,
     col_pos: usize,
 }
 
-impl<'a, T> Iterator for ViewIter<'a, T> {
+impl<'a, T> Iterator for SliceIter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let raw_row_idx = self.view.window_corner[0] + self.row_pos;
-        let raw_col_idx = self.view.window_corner[1] + self.col_pos;
+        let raw_row_idx = self.slice.window_corner[0] + self.row_pos;
+        let raw_col_idx = self.slice.window_corner[1] + self.col_pos;
 
         // Set the position of the next element
-        if self.row_pos < self.view.rows {
+        if self.row_pos < self.slice.rows {
             // If end of row, set to start of next row
-            if self.col_pos == self.view.cols - 1 {
+            if self.col_pos == self.slice.cols - 1 {
                 self.row_pos += 1usize;
                 self.col_pos = 0usize;
             } else {
                 self.col_pos += 1usize;
             }
 
-            Some(&self.view.mat[[raw_row_idx, raw_col_idx]])
+            Some(&self.slice.mat[[raw_row_idx, raw_col_idx]])
         } else {
             None
         }
@@ -130,7 +130,7 @@ impl<'a, T> Iterator for ViewIter<'a, T> {
 /// Indexes matrix.
 ///
 /// Takes row index first then column.
-impl<'a, T> Index<[usize; 2]> for MatrixView<'a, T> {
+impl<'a, T> Index<[usize; 2]> for MatrixSlice<'a, T> {
     type Output = T;
 
     fn index(&self, idx: [usize; 2]) -> &T {
@@ -148,7 +148,7 @@ impl<'a, T> Index<[usize; 2]> for MatrixView<'a, T> {
 }
 
 /// Multiplies matrix by scalar.
-impl<'a, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for MatrixView<'a, T> {
+impl<'a, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn mul(self, f: T) -> Matrix<T> {
@@ -157,7 +157,7 @@ impl<'a, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for MatrixView<'a, T>
 }
 
 /// Multiplies matrix by scalar.
-impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'b T> for MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'b T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn mul(self, f: &T) -> Matrix<T> {
@@ -166,7 +166,7 @@ impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'b T> for MatrixVie
 }
 
 /// Multiplies matrix by scalar.
-impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for &'b MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn mul(self, f: T) -> Matrix<T> {
@@ -175,7 +175,7 @@ impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for &'b MatrixVie
 }
 
 /// Multiplies matrix by scalar.
-impl<'a, 'b, 'c, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'c T> for &'b MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'c T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn mul(self, f: &T) -> Matrix<T> {
@@ -190,7 +190,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'c T> for &'b M
 }
 
 /// Multiplies matrix by matrix.
-impl<'a, T: Copy + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Mul<Matrix<T>> for MatrixView<'a, T> {
+impl<'a, T: Copy + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Mul<Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn mul(self, m: Matrix<T>) -> Matrix<T> {
@@ -199,7 +199,7 @@ impl<'a, T: Copy + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Mul<Mat
 }
 
 /// Multiplies matrix by matrix.
-impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<Matrix<T>> for &'b MatrixView<'a, T> {
+impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn mul(self, m: Matrix<T>) -> Matrix<T> {
@@ -208,7 +208,7 @@ impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<Ma
 }
 
 /// Multiplies matrix by matrix.
-impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'b Matrix<T>> for MatrixView<'a, T> {
+impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'b Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn mul(self, m: &Matrix<T>) -> Matrix<T> {
@@ -217,7 +217,7 @@ impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'
 }
 
 /// Multiplies matrix by matrix.
-impl<'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'c Matrix<T>> for &'b MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'c Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn mul(self, m: &Matrix<T>) -> Matrix<T> {
@@ -247,37 +247,37 @@ impl<'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul
 }
 
 /// Multiplies matrix by matrix.
-impl<'a, 'b, T: Copy + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Mul<MatrixView<'b, T>> for MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Mul<MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn mul(self, m: MatrixView<T>) -> Matrix<T> {
+    fn mul(self, m: MatrixSlice<T>) -> Matrix<T> {
         (&self) * (&m)
     }
 }
 
 /// Multiplies matrix by matrix.
-impl <'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+impl <'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn mul(self, m: MatrixView<T>) -> Matrix<T> {
+    fn mul(self, m: MatrixSlice<T>) -> Matrix<T> {
         self * (&m)
     }
 }
 
 /// Multiplies matrix by matrix.
-impl <'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'c MatrixView<'b, T>> for MatrixView<'a, T> {
+impl <'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'c MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn mul(self, m: &MatrixView<T>) -> Matrix<T> {
+    fn mul(self, m: &MatrixSlice<T>) -> Matrix<T> {
         (&self) * m
     }
 }
 
 /// Multiplies matrix by matrix.
-impl<'a, 'b, 'c, 'd, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'d MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+impl<'a, 'b, 'c, 'd, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'d MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn mul(self, m: &MatrixView<T>) -> Matrix<T> {
+    fn mul(self, m: &MatrixSlice<T>) -> Matrix<T> {
         assert!(self.cols == m.rows, "Matrix dimensions do not agree.");
 
         let mut new_data = vec![T::zero(); self.rows * m.cols];
@@ -306,7 +306,7 @@ impl<'a, 'b, 'c, 'd, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>>
 }
 
 /// Adds scalar to matrix.
-impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for MatrixView<'a, T> {
+impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn add(self, f: T) -> Matrix<T> {
@@ -315,7 +315,7 @@ impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for MatrixView<'a, T>
 }
 
 /// Adds scalar to matrix.
-impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for &'b MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn add(self, f: T) -> Matrix<T> {
@@ -324,7 +324,7 @@ impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for &'b MatrixVie
 }
 
 /// Adds scalar to matrix.
-impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b T> for MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn add(self, f: &T) -> Matrix<T> {
@@ -332,7 +332,7 @@ impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b T> for MatrixVie
     }
 }
 
-impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c T> for &'b MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn add(self, f: &T) -> Matrix<T> {
@@ -347,7 +347,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c T> for &'b M
 }
 
 /// Adds matrix to matrix.
-impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for MatrixView<'a, T> {
+impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn add(self, f: Matrix<T>) -> Matrix<T> {
@@ -356,7 +356,7 @@ impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for MatrixVie
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for &'b MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn add(self, f: Matrix<T>) -> Matrix<T> {
@@ -365,7 +365,7 @@ impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for &'b M
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b Matrix<T>> for MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn add(self, f: &Matrix<T>) -> Matrix<T> {
@@ -374,7 +374,7 @@ impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b Matrix<T>> for M
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c Matrix<T>> for &'b MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn add(self, m: &Matrix<T>) -> Matrix<T> {
@@ -392,37 +392,37 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c Matrix<T>> f
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixView<'b, T>> for MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn add(self, f: MatrixView<T>) -> Matrix<T> {
+    fn add(self, f: MatrixSlice<T>) -> Matrix<T> {
         (&self) + (&f)
     }
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn add(self, f: MatrixView<T>) -> Matrix<T> {
+    fn add(self, f: MatrixSlice<T>) -> Matrix<T> {
         self + (&f)
     }
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c MatrixView<'b, T>> for MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn add(self, f: &MatrixView<T>) -> Matrix<T> {
+    fn add(self, f: &MatrixSlice<T>) -> Matrix<T> {
         (&self) + f
     }
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Add<T, Output = T>> Add<&'d MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Add<T, Output = T>> Add<&'d MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn add(self, m: &MatrixView<T>) -> Matrix<T> {
+    fn add(self, m: &MatrixSlice<T>) -> Matrix<T> {
         assert!(self.cols == m.cols, "Column dimensions do not agree.");
         assert!(self.rows == m.rows, "Row dimensions do not agree.");
 
@@ -437,7 +437,7 @@ impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Add<T, Output = T>> Add<&'d MatrixVi
 }
 
 /// Subtracts scalar from matrix.
-impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for MatrixView<'a, T> {
+impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn sub(self, f: T) -> Matrix<T> {
@@ -446,7 +446,7 @@ impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for MatrixView<'a, T>
 }
 
 /// Subtracts scalar from matrix.
-impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'a T> for MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'a T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn sub(self, f: &T) -> Matrix<T> {
@@ -455,7 +455,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'a T> for MatrixVie
 }
 
 /// Subtracts scalar from matrix.
-impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for &'b MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn sub(self, f: T) -> Matrix<T> {
@@ -464,7 +464,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for &'b MatrixVie
 }
 
 /// Subtracts scalar from matrix.
-impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c T> for &'b MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn sub(self, f: &T) -> Matrix<T> {
@@ -479,7 +479,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c T> for &'b M
 }
 
 /// Adds matrix to matrix.
-impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for MatrixView<'a, T> {
+impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn sub(self, f: Matrix<T>) -> Matrix<T> {
@@ -488,7 +488,7 @@ impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for MatrixVie
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'b MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn sub(self, f: Matrix<T>) -> Matrix<T> {
@@ -497,7 +497,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'b M
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'b Matrix<T>> for MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'b Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn sub(self, f: &Matrix<T>) -> Matrix<T> {
@@ -506,7 +506,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'b Matrix<T>> for M
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c Matrix<T>> for &'b MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn sub(self, m: &Matrix<T>) -> Matrix<T> {
@@ -524,37 +524,37 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c Matrix<T>> f
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixView<'b, T>> for MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn sub(self, f: MatrixView<T>) -> Matrix<T> {
+    fn sub(self, f: MatrixSlice<T>) -> Matrix<T> {
         (&self) - (&f)
     }
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn sub(self, f: MatrixView<T>) -> Matrix<T> {
+    fn sub(self, f: MatrixSlice<T>) -> Matrix<T> {
         self - (&f)
     }
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c MatrixView<'b, T>> for MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn sub(self, f: &MatrixView<T>) -> Matrix<T> {
+    fn sub(self, f: &MatrixSlice<T>) -> Matrix<T> {
         (&self) - f
     }
 }
 
 /// Adds matrix to matrix.
-impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'d MatrixView<'b, T>> for &'c MatrixView<'a, T> {
+impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'d MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
-    fn sub(self, m: &MatrixView<T>) -> Matrix<T> {
+    fn sub(self, m: &MatrixSlice<T>) -> Matrix<T> {
         assert!(self.cols == m.cols, "Column dimensions do not agree.");
         assert!(self.rows == m.rows, "Row dimensions do not agree.");
 
@@ -569,7 +569,7 @@ impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'d MatrixVi
 }
 
 /// Divides matrix by scalar.
-impl<'a, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for MatrixView<'a, T> {
+impl<'a, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn div(self, f: T) -> Matrix<T> {
@@ -578,7 +578,7 @@ impl<'a, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for Matri
 }
 
 /// Divides matrix by scalar.
-impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for &'b MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn div(self, f: T) -> Matrix<T> {
@@ -587,7 +587,7 @@ impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for &
 }
 
 /// Divides matrix by scalar.
-impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'b T> for MatrixView<'a, T> {
+impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'b T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn div(self, f: &T) -> Matrix<T> {
@@ -596,7 +596,7 @@ impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'b T> f
 }
 
 /// Divides matrix by scalar.
-impl<'a, 'b, 'c, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'c T> for &'b MatrixView<'a, T> {
+impl<'a, 'b, 'c, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'c T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn div(self, f: &T) -> Matrix<T> {
@@ -613,7 +613,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'c 
 }
 
 /// Gets negative of matrix.
-impl<'a, T: Neg<Output = T> + Copy> Neg for MatrixView<'a, T> {
+impl<'a, T: Neg<Output = T> + Copy> Neg for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn neg(self) -> Matrix<T> {
@@ -628,7 +628,7 @@ impl<'a, T: Neg<Output = T> + Copy> Neg for MatrixView<'a, T> {
 }
 
 /// Gets negative of matrix.
-impl<'a, 'b, T: Neg<Output = T> + Copy> Neg for &'b MatrixView<'a, T> {
+impl<'a, 'b, T: Neg<Output = T> + Copy> Neg for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
     fn neg(self) -> Matrix<T> {
@@ -644,23 +644,23 @@ impl<'a, 'b, T: Neg<Output = T> + Copy> Neg for &'b MatrixView<'a, T> {
 
 #[cfg(test)]
 mod tests {
-	use super::MatrixView;
+	use super::MatrixSlice;
 	use super::super::Matrix;
 
 	#[test]
 	#[should_panic]
-	fn make_view() {
+	fn make_slice() {
 		let a = Matrix::new(3,3, vec![2.0; 9]);
-		let _ = MatrixView::from_matrix(&a, [1,1], 3, 2);
+		let _ = MatrixSlice::from_matrix(&a, [1,1], 3, 2);
 	}
 
 	#[test]
-	fn add_view() {
+	fn add_slice() {
 		let a = 3.0;
 		let b = Matrix::new(3,3, vec![2.0; 9]);
 		let c = Matrix::new(2,2, vec![1.0; 4]);
 
-		let d = MatrixView::from_matrix(&b, [1,1], 2, 2);
+		let d = MatrixSlice::from_matrix(&b, [1,1], 2, 2);
 
 		let m_1 = &d + a;
 		assert_eq!(m_1.into_vec(), vec![5.0; 4]);
@@ -673,12 +673,12 @@ mod tests {
 	}
 
 	#[test]
-	fn sub_view() {
+	fn sub_slice() {
 		let a = 3.0;
 		let b = Matrix::new(2,2, vec![1.0; 4]);
 		let c = Matrix::new(3,3, vec![2.0; 9]);
 
-		let d = MatrixView::from_matrix(&c, [1,1], 2, 2);
+		let d = MatrixSlice::from_matrix(&c, [1,1], 2, 2);
 
 		let m_1 = &d - a;
 		assert_eq!(m_1.into_vec(), vec![-1.0; 4]);
@@ -691,12 +691,12 @@ mod tests {
 	}
 
 	#[test]
-	fn mul_view() {
+	fn mul_slice() {
 		let a = 3.0;
 		let b = Matrix::new(2,2, vec![1.0; 4]);
 		let c = Matrix::new(3,3, vec![2.0; 9]);
 
-		let d= MatrixView::from_matrix(&c, [1,1], 2, 2);
+		let d= MatrixSlice::from_matrix(&c, [1,1], 2, 2);
 
 		let m_1 = &d * a;
 		assert_eq!(m_1.into_vec(), vec![6.0; 4]);
@@ -709,32 +709,32 @@ mod tests {
 	}
 
 	#[test]
-	fn div_view() {
+	fn div_slice() {
 		let a = 3.0;
 
 		let b = Matrix::new(3,3, vec![2.0; 9]);
 
-		let c = MatrixView::from_matrix(&b, [1,1], 2, 2);
+		let c = MatrixSlice::from_matrix(&b, [1,1], 2, 2);
 
 		let m = c / a;
 		assert_eq!(m.into_vec(), vec![2.0/3.0 ;4]);
 	}
 
 	#[test]
-	fn neg_view() {
+	fn neg_slice() {
 		let b = Matrix::new(3,3, vec![2.0; 9]);
 
-		let c = MatrixView::from_matrix(&b, [1,1], 2, 2);
+		let c = MatrixSlice::from_matrix(&b, [1,1], 2, 2);
 
 		let m = -c;
 		assert_eq!(m.into_vec(), vec![-2.0;4]);
 	}
 
 	#[test]
-	fn index_view() {
+	fn index_slice() {
 		let b = Matrix::new(3,3, (0..9).collect());
 
-		let c = MatrixView::from_matrix(&b, [1,1], 2, 2);
+		let c = MatrixSlice::from_matrix(&b, [1,1], 2, 2);
 		
 		assert_eq!(c[[0,0]], 4);
 		assert_eq!(c[[0,1]], 5);
