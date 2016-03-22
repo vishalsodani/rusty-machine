@@ -3,6 +3,8 @@ use super::Matrix;
 use std::ops::{Mul, Add, Div, Sub, Index, Neg};
 use libnum::{One, Zero};
 
+use linalg::utils;
+
 /// A MatrixSlice
 ///
 /// This struct provides a slice into a matrix.
@@ -381,7 +383,8 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c Matrix<T>> f
         assert!(self.cols == m.cols, "Column dimensions do not agree.");
         assert!(self.rows == m.rows, "Row dimensions do not agree.");
 
-        let new_data = self.iter().zip(m.data().iter()).map(|(u, v)| *u + *v).collect();
+        let mut new_data : Vec<T> = self.iter().map(|x| *x).collect();
+        utils::in_place_vec_bin_op(&mut new_data, &m.data(), |x, &y| { *x = *x + y });
 
         Matrix {
             cols: self.cols,
@@ -427,6 +430,7 @@ impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Add<T, Output = T>> Add<&'d MatrixSl
         assert!(self.rows == m.rows, "Row dimensions do not agree.");
 
         let new_data = self.iter().zip(m.iter()).map(|(u, v)| *u + *v).collect();
+        
 
         Matrix {
             cols: self.cols,
@@ -478,7 +482,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c T> for &'b M
     }
 }
 
-/// Adds matrix to matrix.
+/// Subtracts matrix from matrix.
 impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -487,7 +491,7 @@ impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for MatrixSli
     }
 }
 
-/// Adds matrix to matrix.
+/// Subtracts matrix from matrix.
 impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -496,7 +500,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'b M
     }
 }
 
-/// Adds matrix to matrix.
+/// Subtracts matrix from matrix.
 impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'b Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -505,7 +509,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'b Matrix<T>> for M
     }
 }
 
-/// Adds matrix to matrix.
+/// Subtracts matrix from matrix.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -513,7 +517,9 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c Matrix<T>> f
         assert!(self.cols == m.cols, "Column dimensions do not agree.");
         assert!(self.rows == m.rows, "Row dimensions do not agree.");
 
-        let new_data = self.iter().zip(m.data().iter()).map(|(u, v)| *u - *v).collect();
+        let mut new_data : Vec<T> = self.iter().map(|x| *x).collect();
+        utils::in_place_vec_bin_op(&mut new_data, &m.data(), |x, &y| { *x = *x - y });
+        
 
         Matrix {
             cols: self.cols,
@@ -523,7 +529,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c Matrix<T>> f
     }
 }
 
-/// Adds matrix to matrix.
+/// Subtracts matrix from matrix.
 impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -532,7 +538,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, T>> 
     }
 }
 
-/// Adds matrix to matrix.
+/// Subtracts matrix from matrix.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -541,7 +547,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, 
     }
 }
 
-/// Adds matrix to matrix.
+/// Subtracts matrix from matrix.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -550,7 +556,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c MatrixSlice<
     }
 }
 
-/// Adds matrix to matrix.
+/// Subtracts matrix from matrix.
 impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'d MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
