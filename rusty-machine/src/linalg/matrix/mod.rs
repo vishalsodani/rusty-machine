@@ -69,8 +69,8 @@ impl<T> Matrix<T> {
         &self.data
     }
 
-    /// Returns a mutable reference to the underlying data.
-    pub fn mut_data(&mut self) -> &mut Vec<T> {
+    /// Returns a mutable slice of the underlying data.
+    pub fn mut_data(&mut self) -> &mut [T] {
         &mut self.data
     }
 
@@ -364,14 +364,12 @@ impl<T: Copy> Matrix<T> {
     ///
     /// assert_eq!(*b.data(), vec![2.0; 4]);
     /// ```
-    pub fn apply(self, f: &Fn(T) -> T) -> Matrix<T> {
-        let new_data = self.data.into_iter().map(f).collect();
-
-        Matrix {
-            rows: self.rows,
-            cols: self.cols,
-            data: new_data,
+    pub fn apply(mut self, f: &Fn(T) -> T) -> Matrix<T> {
+        for val in self.data.iter_mut() {
+            *val = f(*val);
         }
+
+        self
     }
 }
 
@@ -968,7 +966,7 @@ impl<T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for Matrix<T> {
     type Output = Matrix<T>;
 
     fn mul(self, f: T) -> Matrix<T> {
-        (&self) * (&f)
+        self * &f
     }
 }
 
@@ -976,8 +974,12 @@ impl<T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for Matrix<T> {
 impl<'a, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'a T> for Matrix<T> {
     type Output = Matrix<T>;
 
-    fn mul(self, f: &T) -> Matrix<T> {
-        (&self) * f
+    fn mul(mut self, f: &T) -> Matrix<T> {
+        for val in self.data.iter_mut() {
+            *val = *val * *f;
+        }
+
+        self
     }
 }
 
@@ -1112,7 +1114,7 @@ impl<T: Copy + One + Zero + Add<T, Output = T>> Add<T> for Matrix<T> {
     type Output = Matrix<T>;
 
     fn add(self, f: T) -> Matrix<T> {
-        (&self) + (&f)
+        self + &f
     }
 }
 
@@ -1129,8 +1131,12 @@ impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for &'a Matrix<T> {
 impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<&'a T> for Matrix<T> {
     type Output = Matrix<T>;
 
-    fn add(self, f: &T) -> Matrix<T> {
-        (&self) + f
+    fn add(mut self, f: &T) -> Matrix<T> {
+        for val in self.data.iter_mut() {
+            *val = *val + *f;
+        }
+
+        self
     }
 }
 
@@ -1153,7 +1159,7 @@ impl<T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for Matrix<T> {
     type Output = Matrix<T>;
 
     fn add(self, f: Matrix<T>) -> Matrix<T> {
-        (&self) + (&f)
+        self + &f
     }
 }
 
@@ -1162,7 +1168,7 @@ impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for &'a Matri
     type Output = Matrix<T>;
 
     fn add(self, f: Matrix<T>) -> Matrix<T> {
-        self + (&f)
+        f + self
     }
 }
 
@@ -1170,8 +1176,9 @@ impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for &'a Matri
 impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<&'a Matrix<T>> for Matrix<T> {
     type Output = Matrix<T>;
 
-    fn add(self, f: &Matrix<T>) -> Matrix<T> {
-        (&self) + f
+    fn add(mut self, f: &Matrix<T>) -> Matrix<T> {
+        utils::in_place_vec_bin_op(&mut self.data, &f.data, |x,&y| {*x = *x + y});
+        self
     }
 }
 
@@ -1198,7 +1205,7 @@ impl<T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for Matrix<T> {
     type Output = Matrix<T>;
 
     fn sub(self, f: T) -> Matrix<T> {
-        (&self) - (&f)
+        self - (&f)
     }
 }
 
@@ -1206,8 +1213,12 @@ impl<T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for Matrix<T> {
 impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'a T> for Matrix<T> {
     type Output = Matrix<T>;
 
-    fn sub(self, f: &T) -> Matrix<T> {
-        (&self) - f
+    fn sub(mut self, f: &T) -> Matrix<T> {
+        for val in self.data.iter_mut() {
+            *val = *val - *f;
+        }
+
+        self
     }
 }
 
@@ -1239,8 +1250,8 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'b T> for &'a Matri
 impl<T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for Matrix<T> {
     type Output = Matrix<T>;
 
-    fn sub(self, f: Matrix<T>) -> Matrix<T> {
-        (&self) - (&f)
+    fn sub(self, m: Matrix<T>) -> Matrix<T> {
+        self - &m
     }
 }
 
@@ -1248,8 +1259,10 @@ impl<T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for Matrix<T> {
 impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
-    fn sub(self, f: Matrix<T>) -> Matrix<T> {
-        self - (&f)
+    fn sub(self, mut m: Matrix<T>) -> Matrix<T> {
+        utils::in_place_vec_bin_op(&mut m.data, &self.data, |x,&y| {*x = y - *x});
+        
+        m
     }
 }
 
@@ -1257,8 +1270,10 @@ impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'a Matri
 impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'a Matrix<T>> for Matrix<T> {
     type Output = Matrix<T>;
 
-    fn sub(self, f: &Matrix<T>) -> Matrix<T> {
-        (&self) - f
+    fn sub(mut self, m: &Matrix<T>) -> Matrix<T> {
+        utils::in_place_vec_bin_op(&mut self.data, &m.data, |x,&y| {*x = *x - y});
+        
+        self
     }
 }
 
@@ -1285,7 +1300,7 @@ impl<T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for Matrix<T>
     type Output = Matrix<T>;
 
     fn div(self, f: T) -> Matrix<T> {
-        (&self) / (&f)
+        self / (&f)
     }
 }
 
@@ -1302,8 +1317,12 @@ impl<'a, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for &'a M
 impl<'a, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'a T> for Matrix<T> {
     type Output = Matrix<T>;
 
-    fn div(self, f: &T) -> Matrix<T> {
-        (&self) / f
+    fn div(mut self, f: &T) -> Matrix<T> {
+        for val in self.data.iter_mut() {
+            *val = *val / *f;
+        }
+
+        self
     }
 }
 
@@ -1328,14 +1347,12 @@ impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'b T> f
 impl<T: Neg<Output = T> + Copy> Neg for Matrix<T> {
     type Output = Matrix<T>;
 
-    fn neg(self) -> Matrix<T> {
-        let new_data = self.data.iter().map(|v| -*v).collect();
-
-        Matrix {
-            cols: self.cols,
-            rows: self.rows,
-            data: new_data,
+    fn neg(mut self) -> Matrix<T> {
+        for val in self.data.iter_mut() {
+            *val = -*val;
         }
+
+        self
     }
 }
 
