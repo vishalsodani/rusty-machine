@@ -1092,7 +1092,7 @@ impl<T: Copy + Sync + Send + Zero + One + Mul<T, Output = T> + Add<T, Output = T
             max_dim = q;
         }
 
-        if max_dim < 128 {
+        if max_dim < 64 {
             self * m
         } else {
             let split_point = max_dim / 2;
@@ -1107,8 +1107,6 @@ impl<T: Copy + Sync + Send + Zero + One + Mul<T, Output = T> + Add<T, Output = T
                 a_1_b.vcat(&a_2_b)
             } else if max_dim == p {
                 // Split self vertically and b horizontally
-                let split_point = p / 2;
-
                 let a_left = self.select_cols(&(0..split_point).collect::<Vec<usize>>()[..]);
                 let a_right = self.select_cols(&(split_point..p).collect::<Vec<usize>>()[..]);
 
@@ -1121,8 +1119,6 @@ impl<T: Copy + Sync + Send + Zero + One + Mul<T, Output = T> + Add<T, Output = T
                 a_1_b_1 + a_2_b_2
             } else if max_dim == q {
                 // Split m vertically
-                let split_point = q / 2;
-
                 let left = m.select_cols(&(0..split_point).collect::<Vec<usize>>()[..]);
                 let right = m.select_cols(&(split_point..q).collect::<Vec<usize>>()[..]);
 
