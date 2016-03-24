@@ -105,6 +105,7 @@ pub struct SliceIter<'a, T: 'a> {
     col_pos: usize,
 }
 
+/// Iterates over the matrix slice data in row-major order.
 impl<'a, T> Iterator for SliceIter<'a, T> {
     type Item = &'a T;
 
@@ -129,7 +130,7 @@ impl<'a, T> Iterator for SliceIter<'a, T> {
     }
 }
 
-/// Indexes matrix.
+/// Indexes matrix slice.
 ///
 /// Takes row index first then column.
 impl<'a, T> Index<[usize; 2]> for MatrixSlice<'a, T> {
@@ -149,7 +150,7 @@ impl<'a, T> Index<[usize; 2]> for MatrixSlice<'a, T> {
     }
 }
 
-/// Multiplies matrix by scalar.
+/// Multiplies matrix slice by scalar.
 impl<'a, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -158,7 +159,7 @@ impl<'a, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for MatrixSlice<'a, T
     }
 }
 
-/// Multiplies matrix by scalar.
+/// Multiplies matrix slice by scalar.
 impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'b T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -167,7 +168,7 @@ impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'b T> for MatrixSli
     }
 }
 
-/// Multiplies matrix by scalar.
+/// Multiplies matrix slice by scalar.
 impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -176,7 +177,7 @@ impl<'a, 'b, T: Copy + One + Zero + Mul<T, Output = T>> Mul<T> for &'b MatrixSli
     }
 }
 
-/// Multiplies matrix by scalar.
+/// Multiplies matrix slice by scalar.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'c T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -191,7 +192,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Mul<T, Output = T>> Mul<&'c T> for &'b M
     }
 }
 
-/// Multiplies matrix by matrix.
+/// Multiplies matrix slice by matrix.
 impl<'a, T: Copy + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Mul<Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -200,7 +201,7 @@ impl<'a, T: Copy + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Mul<Mat
     }
 }
 
-/// Multiplies matrix by matrix.
+/// Multiplies matrix slice by matrix.
 impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -209,7 +210,7 @@ impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<Ma
     }
 }
 
-/// Multiplies matrix by matrix.
+/// Multiplies matrix slice by matrix.
 impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'b Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -218,7 +219,7 @@ impl <'a, 'b, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'
     }
 }
 
-/// Multiplies matrix by matrix.
+/// Multiplies matrix slice by matrix.
 impl<'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'c Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -248,7 +249,7 @@ impl<'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul
     }
 }
 
-/// Multiplies matrix by matrix.
+/// Multiplies matrix slice by matrix slice.
 impl<'a, 'b, T: Copy + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Mul<MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -257,7 +258,7 @@ impl<'a, 'b, T: Copy + Zero + One + Mul<T, Output = T> + Add<T, Output = T>> Mul
     }
 }
 
-/// Multiplies matrix by matrix.
+/// Multiplies matrix slice by matrix slice.
 impl <'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -266,7 +267,7 @@ impl <'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mu
     }
 }
 
-/// Multiplies matrix by matrix.
+/// Multiplies matrix slice by matrix slice.
 impl <'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'c MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -275,7 +276,7 @@ impl <'a, 'b, 'c, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mu
     }
 }
 
-/// Multiplies matrix by matrix.
+/// Multiplies matrix slice by matrix slice.
 impl<'a, 'b, 'c, 'd, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>> Mul<&'d MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -307,7 +308,7 @@ impl<'a, 'b, 'c, 'd, T: Copy + Zero + One + Mul<T, Output=T> + Add<T, Output=T>>
     }
 }
 
-/// Adds scalar to matrix.
+/// Adds scalar to matrix slice.
 impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -316,7 +317,7 @@ impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for MatrixSlice<'a, T
     }
 }
 
-/// Adds scalar to matrix.
+/// Adds scalar to matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -325,7 +326,7 @@ impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<T> for &'b MatrixSli
     }
 }
 
-/// Adds scalar to matrix.
+/// Adds scalar to matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -334,6 +335,7 @@ impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b T> for MatrixSli
     }
 }
 
+/// Adds scalar to matrix slice.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -348,7 +350,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c T> for &'b M
     }
 }
 
-/// Adds matrix to matrix.
+/// Adds matrix to matrix slice.
 impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -357,7 +359,7 @@ impl<'a, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for MatrixSli
     }
 }
 
-/// Adds matrix to matrix.
+/// Adds matrix to matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -366,7 +368,7 @@ impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<Matrix<T>> for &'b M
     }
 }
 
-/// Adds matrix to matrix.
+/// Adds matrix to matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -375,7 +377,7 @@ impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<&'b Matrix<T>> for M
     }
 }
 
-/// Adds matrix to matrix.
+/// Adds matrix to matrix slice.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -394,7 +396,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c Matrix<T>> f
     }
 }
 
-/// Adds matrix to matrix.
+/// Adds matrix slice to matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -403,7 +405,7 @@ impl<'a, 'b, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixSlice<'b, T>> 
     }
 }
 
-/// Adds matrix to matrix.
+/// Adds matrix slice to matrix slice.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -412,7 +414,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<MatrixSlice<'b, 
     }
 }
 
-/// Adds matrix to matrix.
+/// Adds matrix slice to matrix slice.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -421,7 +423,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Add<T, Output = T>> Add<&'c MatrixSlice<
     }
 }
 
-/// Adds matrix to matrix.
+/// Adds matrix slice to matrix slice.
 impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Add<T, Output = T>> Add<&'d MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -429,18 +431,20 @@ impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Add<T, Output = T>> Add<&'d MatrixSl
         assert!(self.cols == m.cols, "Column dimensions do not agree.");
         assert!(self.rows == m.rows, "Row dimensions do not agree.");
 
-        let new_data = self.iter().zip(m.iter()).map(|(u, v)| *u + *v).collect();
-        
+        let mut res_data : Vec<T> = self.iter().map(|x| *x).collect();
+        let m_data : Vec<T> = m.iter().map(|x| *x).collect();
+
+        utils::in_place_vec_bin_op(&mut res_data, &m_data, |x, &y| { *x = *x + y });
 
         Matrix {
             cols: self.cols,
             rows: self.rows,
-            data: new_data,
+            data: res_data,
         }
     }
 }
 
-/// Subtracts scalar from matrix.
+/// Subtracts scalar from matrix slice.
 impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -449,7 +453,7 @@ impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for MatrixSlice<'a, T
     }
 }
 
-/// Subtracts scalar from matrix.
+/// Subtracts scalar from matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'a T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -458,7 +462,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'a T> for MatrixSli
     }
 }
 
-/// Subtracts scalar from matrix.
+/// Subtracts scalar from matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -467,7 +471,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<T> for &'b MatrixSli
     }
 }
 
-/// Subtracts scalar from matrix.
+/// Subtracts scalar from matrix slice.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -482,7 +486,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c T> for &'b M
     }
 }
 
-/// Subtracts matrix from matrix.
+/// Subtracts matrix from matrix slice.
 impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -491,7 +495,7 @@ impl<'a, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for MatrixSli
     }
 }
 
-/// Subtracts matrix from matrix.
+/// Subtracts matrix from matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -500,7 +504,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<Matrix<T>> for &'b M
     }
 }
 
-/// Subtracts matrix from matrix.
+/// Subtracts matrix from matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'b Matrix<T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -509,7 +513,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'b Matrix<T>> for M
     }
 }
 
-/// Subtracts matrix from matrix.
+/// Subtracts matrix from matrix slice.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c Matrix<T>> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -529,7 +533,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c Matrix<T>> f
     }
 }
 
-/// Subtracts matrix from matrix.
+/// Subtracts matrix slice from matrix slice.
 impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -538,7 +542,7 @@ impl<'a, 'b, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, T>> 
     }
 }
 
-/// Subtracts matrix from matrix.
+/// Subtracts matrix slice from matrix slice.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -547,7 +551,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<MatrixSlice<'b, 
     }
 }
 
-/// Subtracts matrix from matrix.
+/// Subtracts matrix slice from matrix slice.
 impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c MatrixSlice<'b, T>> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -556,7 +560,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'c MatrixSlice<
     }
 }
 
-/// Subtracts matrix from matrix.
+/// Subtracts matrix slice from matrix slice.
 impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'d MatrixSlice<'b, T>> for &'c MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -564,17 +568,20 @@ impl<'a, 'b, 'c, 'd, T: Copy + One + Zero + Sub<T, Output = T>> Sub<&'d MatrixSl
         assert!(self.cols == m.cols, "Column dimensions do not agree.");
         assert!(self.rows == m.rows, "Row dimensions do not agree.");
 
-        let new_data = self.iter().zip(m.iter()).map(|(u, v)| *u - *v).collect();
+        let mut res_data : Vec<T> = self.iter().map(|x| *x).collect();
+        let m_data : Vec<T> = m.iter().map(|x| *x).collect();
+
+        utils::in_place_vec_bin_op(&mut res_data, &m_data, |x, &y| { *x = *x - y });
 
         Matrix {
             cols: self.cols,
             rows: self.rows,
-            data: new_data,
+            data: res_data,
         }
     }
 }
 
-/// Divides matrix by scalar.
+/// Divides matrix slice by scalar.
 impl<'a, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -583,7 +590,7 @@ impl<'a, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for Matri
     }
 }
 
-/// Divides matrix by scalar.
+/// Divides matrix slice by scalar.
 impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -592,7 +599,7 @@ impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<T> for &
     }
 }
 
-/// Divides matrix by scalar.
+/// Divides matrix slice by scalar.
 impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'b T> for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -601,7 +608,7 @@ impl<'a, 'b, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'b T> f
     }
 }
 
-/// Divides matrix by scalar.
+/// Divides matrix slice by scalar.
 impl<'a, 'b, 'c, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'c T> for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -618,7 +625,7 @@ impl<'a, 'b, 'c, T: Copy + One + Zero + PartialEq + Div<T, Output = T>> Div<&'c 
     }
 }
 
-/// Gets negative of matrix.
+/// Gets negative of matrix slice.
 impl<'a, T: Neg<Output = T> + Copy> Neg for MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
@@ -633,7 +640,7 @@ impl<'a, T: Neg<Output = T> + Copy> Neg for MatrixSlice<'a, T> {
     }
 }
 
-/// Gets negative of matrix.
+/// Gets negative of matrix slice.
 impl<'a, 'b, T: Neg<Output = T> + Copy> Neg for &'b MatrixSlice<'a, T> {
     type Output = Matrix<T>;
 
